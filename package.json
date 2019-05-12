@@ -3,5 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "author": "cookie <jung_dj@kaist.ac.kr>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "knex": "^0.16.5"
+  }
 }
