@@ -1,7 +1,7 @@
 module.exports = {
 	apps : [{
 		name        : "server",
-		script      : "node bin/www",
+		script      : "./bin/www",
 		watch: true,
 		ignore_watch: ["node_modules"],
 		env: {
