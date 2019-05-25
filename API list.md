@@ -1,138 +1,361 @@
 # KAISTudy Routing / API List
 
-참고 : modal 띄우는 방식으로 한다고 했던 것 같은데 일단은 온갖 GET 요청들도 나열해봄!
 
-
-
-### ETC
-
-| Routing Path | Functionality |
-| ------------ | ------------- |
-| GET /                 | 메인페이지, 카테고리 별로 모집 중인 그룹들을 표시 |
-
-* /
-  * 카테고리 리스트
-  * 그룹 리스트 (title, deadline, capacity, group_id)
-  * 
-
-### Account
-
-| Routing Path           | Functionality             |
-| ---------------------- | ------------------------- |
-| GET, POST /login       | SSO 연동해서 로그인       |
-| GET /logout            | 로그아웃                  |
-| GET, POST /register    | SSO 연동해서 회원가입     |
-| GET, ~~POST~~ /mypage  | 유저 정보 확인, ~~수정~~  |
-| ~~POST /notification~~ | ~~유저에게 온 알림 요청~~ |
-
-* POST /register
-  * first name, last name
-  * email, password
-  * gender (리스트에서 선택), student id, phone nmber
-  * 얘네를 받아서 DB 에 추가 (email 중복 체크, sid 중복 체크)
-* POST /login
-  * email, password 받아서, 있는지 체크
-* /notification
-  * 유저가 알림을 확인했을 때 확인했다는 내용을 서버에 보낼 수도 있음
 
 ### Group
 
 | Routing Path | Functionality |
 | ------------ | ------------- |
-| GET, POST /group/register        | 그룹 생성 페이지, 그룹 생성                  |
-| GET /group/manage       | 그룹장 용 그룹 관리 페이지<br />그룹 제목, 그룹장, 확정 멤버 목록, 확정 멤버 삭제, 요청 중인 멤버, 수락, 거절, 모집 마감 버튼 |
-| GET /group/view        | 그룹의 기본 정보 열람 페이지 (+ 그룹 참가 버튼 제공)<br />이미지, 그룹 제목, 기본 정보 (시간, 장소, 정원, …), 참가 버튼 (+ 진행 현황), 상세설명, 멤버 목록 |
+| POST /group/register        | 그룹 생성 페이지, 그룹 생성                  |
+| GET /group/manage       | 그룹장 용 그룹 관리 페이지에 필요한 정보들<br />그룹 참여자 / 참여 요정자 들의 정보,  그룹의 기본 정보 |
+| GET /group/detail | 그룹의 기본 정보 열람 페이지 (+ 그룹 참가 버튼 제공)<br />이미지, 그룹 제목, 기본 정보 (시간, 장소, 정원, …), 참가 버튼 (+ 진행 현황), 상세설명, 멤버 목록 |
 | POST /group/comment/new    | 새로운 댓글 / 대댓글 생성                            |
 | POST /group/comment/modify       | 댓글 수정 (/group/comment/add 와 합치거나 수정 기능을 없앨 수도 있음) |
-| POST /group/comment/list         | 댓글 리스트 요청                                             |
-| POST /group/participate/list | 그룹 참가 신청 현황                                           |
+| GET /group/comment/list     | 댓글 리스트 요청                                             |
+| GET /group/participate/list | 그룹 참가 신청 현황 + 참가 신청자 정보                              |
 | POST /group/participate/new | 그룹 참가 신청                                           |
 | POST /group/participate/accept | 그룹 참가 신청 수락                                         |
 | POST /group/participate/reject | 그룹 참가 신청 거절                                    |
-| POST /group/finish | 그룹 모집 마감                                |
-| POST /group/list                  | (/group/search 의 subset) 모든 그룹의 정보를 요청            |
-| ~~POST /group/search~~            | ~~특정 조건의 그룹 검색, (ex. 태그, 제목, 설명, …)~~         |
+| POST /group/endRecruit | 그룹 모집 마감                                |
+| POSt /group/deleteGroup | 그룹 삭제     |
+| POST /group/list               | 모든 그룹의 기본 정보를 요청 (group table 에 있는 정보 + category name 까지만) |
 
 * 가정
-  - group 이 있는 지를 따로 체크할 지, participate 가 있는 지 체크하면서 같이 체크할 지
-    - checkGroup : group_id 체크 루틴
-    - **<u>group_id 는 post 이든 get 이든 항상 query 에 ?group_id 와 같이 주어야 함</u>**
   - group 삭제하면 participate 도 같이 삭제 (participate 에서 group_id : ondelete cascade)
   - group 삭제하면 comment 도 같이 삭제
   - parent comment 삭제하면 child comment 도 같이 삭제
   - **student_id, group_id 는 이미 검증되었다고 가정**
     - student_id : session 이 존재하면 맞다고 가정
       - 로그인 시에 있는지 체크, 계정이 사라지거나 student_id 가 바뀌는 일은 없다고 가정
-    - group_id : 실제로 있는지 체크
-* POST /group/register => /group/create 로 바꿀까?
-  * title, desc, capacity, deadline, workload, category, tag
+      - TODO : 실제 인증 과정에 맞춰서 변경 필요
+        - req.session.student_id 있는 코드
+        - checkAuth 코드
+    - group_id : 실제로 있는지 체크하는 방식
+
+
+
+### API detail
+
+* POST /group/register
+
+  * 입력 : 
+    * title : string
+    * desc : string
+    * capacity : int
+    * deadline : timestamp (백엔드에서는 검사 안 하지만 DB 에 들어갈 때 맞춰줘야 함)
+    * workload : string
+    * category : string (카테고리 테이블에 있는 거면 그 카테고리의 category_id 를 사용, 없으면 기타로 취급)
+    * tag : string
+  * 출력 : 
+    * ```json
+      {
+        success: true,
+        result: {
+          group_id: 5 // (새로 생성된 group_id)
+        }
+      }
+      ```
+
 * GET /group/manage
   * 입력 : student_id, group_d
-  * 체크 : 해당 유저가 해당 그룹의 owner 인지
-  * 출력 : 해당 그룹의 capacity, deadline, 멤버 정보, 요청 정보
-    * 멤버 정보를 받아오는 과정
-      * select * from participate join student on participate.student_id=student.student_id where group_id=${group_id}
-      * 최적화 방안
-        * semi join 으로 student 정보만 출력
-          * fname, lname, gender, phone, email
-          * name = fname + lname 은 클라 쪽에서 하기로!
-        * participate + student 말고 (select * from participate where group_id=${group_id}) + student 를 사용
-    * TODO: 누가 요청을 보냈는지 받아오는 과정이 필요
-* GET /group/view => /group/detail 로 바꿀까?
-  * 입력 : student_id, group_id
-  * 체크 : 해당 그룹에서 해당 유저의 상태
-  * 출력 : 해당 그룹의 정보 + 유저에 맞는 버튼 보여주기
-    * 코멘트들 받아와야 함
-      * **이거는 클라이언트에서 POST /comment/list 로 받아오게끔!**
-    * 그룹 매니저 정보 받아와야 함
+
+  * 과정: 
+
+    * 해당 유저가 해당 그룹의 owner 인지 체크
+
+    * ```mysql
+      select 1 from participate where group_id=${group_id} and student_id=${student_id} and is_owner=true;
+      ```
+
+    * 그룹의 세부 정보를 DB 로부터 읽어서 반환
+
+      * category 하고 join 해서 category_name 을 바로 확인할 수 있도록 함
+
+    * 그룹의 participation 관련 정보를 DB 로부터 읽어서 반환 (참여 중인 사람, 참여 요청을 보낸 사람 들의 정보)
+
+      * participate, student 를 join
+      * ```mysql
+        select * from  (select * from participate where group_id=${group_id}) natural join student;
+        ```
+
+  * 출력 :
+
+    * {success: false, msg: "no authority"}
+
+    * group_detail 과 part_detail (참여 현황 / 참여 요청 현황 + 학생 정보) 이 따로 반환
+
+      ```json
+      {
+        success: true,
+        result: {
+          group_detail: {
+            group_id: 1,
+            title: 'test',
+            capacity: 10,
+            desc: 'Hello, this is test group!',
+            deadline: 2019-05-25T13:07:07.000Z,
+            workload: 'hard',
+            tag: '#test# #fun#',
+            is_recruiting: 1,
+            category_id: 7,
+            created_at: 2019-05-25T13:07:07.000Z,
+            updated_at: 2019-05-25T13:07:07.000Z,
+            category_name: 'coding'
+          },
+          part_detail: [
+            {is_pending, is_owner, ... , student_id, first_name, last_name, ...},
+            {},
+            ...
+          ]
+        }
+      }
+      ```
+
+    * 
+
+* GET /group/detail (원래는 /group/view)
+
+  * 입력 : group 3 을 "20160759" 학생이 보려는 경우
+
+    * student_id : "20160759" 
+    * group_id : 3
+
+  * 과정 : 
+
+    * 해당 그룹에서 해당 유저의 상태 반환
+    * 그룹에 대한 세부 정보 (title, deadline, …) 반환
+    * 그룹장에 대한 세부 정보 (student id, email, …) 반환
+
+  * 출력 : 
+
+    * result 에 user_status, group_detail, owner_info 를 따로 저장
+
+    * ```json
+      {
+        success: true,
+        result: {
+          "user_status": 0, // 유저에게 보여줄 버튼 : (0 - "Participate" button, 1 - "Requesting" button, 2 - "Already in" button)
+          "group_detail": {
+            // group 테이블의 속성들
+            group_id: 1,
+            title: 'test',
+            capacity: 10,
+            desc: 'Hello, this is test group!',
+            deadline: 2019-05-25T13:07:07.000Z,
+            workload: 'hard',
+            tag: '#test# #fun#',
+            is_recruiting: 1,
+            category_id: 7,
+            created_at: 2019-05-25T13:07:07.000Z,
+            updated_at: 2019-05-25T13:07:07.000Z,
+            category_name: 'coding'
+          },
+          "owner_info": {
+            // student 테이블의 속성들
+          }
+        }
+      }
+      ```
+
+    * comment 리스트는 GET /group/comment/list 로 따로 요청해야 함
+
 * POST /group/comment/new
-  * 입력 : student_id, group_id, parent_comment_id, text
+  * 입력 : 
+    * student_id : "20160759"
+    * group_id : 3
+    * parent_comment_id : 2
+    * text : "How much you will cover?"
   * 과정 : 
     * parent_comment_id 체크 (현재 그룹에 있는 comment 인가, 1-level 인가)
     * DB 에 추가 (text 가 string 인지는 귀찮아서 체크 ㄴㄴ)
-  * 출력 : 성공 여부?
-* POST /group/comment/modify
+  * 출력 :
+    * {success: false, msg: "wrong parent comment"}
+    * {success: true}
+
+* ~~POST /group/comment/modify~~
+
   * 입력 : student_id, group_id, comment_id, new_text
   * 과정 : 
     * 해당 comment_id 에 대해 올바른 group_id, student_id 인지 체크
       * 이거 그냥 update 에서 한방에 할 수도?
     * update
   * 출력 : 성공 여부?
-* POST /group/participate/list
-  * 입력 : sid, gid
+
+* GET /group/comment/list
+
+  * 입력 :
+
+    * group_id : 3
+  * 과정 :
+    * 코멘트 내용, 부모 코멘트, 코멘트 작성 / 수정 일시,  코멘트 작성자 정보, comment_id, group_id
+    * 작성자 정보는 student 테이블에 있기 때문에 join 해서 반환
+  * 출력 : TODO
+    * comment 의 속성들 + student 의 속성들
+    * ```json
+      {
+        success: true,
+        result: [
+          {comment 정보1, ... ,  student 정보1, ...},
+          {}    
+        ]
+      }
+      ```
+
+* GET /group/participate/list
+
+  * 입력 :
+
+    * student_id : "20160759"
+    * group_id : 3
+
   * 과정 : 
-    * 이걸 아무나 하게 해줘야 하나?
-      * 현재 멤버 : 현재 멤버들을 볼 수 있음
-        * select student_id, is_owner from participate where is_pending=0 and group_id=${group_id};
-        * 귀찮으니 project 는 하지 맙시다
-      * 관리자 : 현재 멤버 + 참가 요청을 볼 수 있음
-        * select student_id, is_owner, is_pending from participate where group_id=${group_id};
-    * 
+
+    * 해당 유저가 해당 그룹에서 어떤 위치인지 (owner / member / normal) 판단
+      * select is_owner, is_pending from participate where student_id="20160759" and group_id=3;
+    * 그룹의 현재 멤버 : 현재 멤버들을 볼 수 있음
+      * select * from participate where is_pending=0 and group_id=${group_id};
+      * 귀찮으니 project 는 하지 맙시다
+    * 그룹의 관리자 : 현재 멤버 + 참가 요청을 볼 수 있음
+      * select * from participate where group_id=${group_id};
+    * 멤버의 정보를 봐야 하기 때문에 student 와 join 해서 반환
+
+  * 출력 : TODO
+
+    * {success: false, msg: "~"}
+
+      * "no authority"
+
+    * 멤버 (관리자 : 확정되지 않은 요청도 볼 수 있음, 관리자 X : 확정된 멤버에 대해서만 볼 수 있음)
+
+      * participate 의 속성들 + student 의 속성들
+
+    * ```json
+      {
+        success: true,
+        result: [
+          {participate 정보1, ... ,  student 정보1, ...},
+          {}    
+        ]
+      }
+      ```
+
 * POST  /group/participate/new
-  * 입력 : student_id, group_id
+
+  * 유저가 해당 그룹에 가입 신청
+  * 입력 :
+    * student_id : "20160759"
+    * group_id : 3
   * 과정 : 
-    * 중복 참가 허용?
-    * participate 테이블에 sid, gid 를 추가, is_owner = false, is_pending = true 로 설정
-      * 참고 : is_owner, is_pending 의 기본 값은 false, true
-  * 출력 : 성공 여부?
+    * 중복 참가 체크 안 함
+    * participate 테이블에 추가, is_owner = false, is_pending = true 로 설정
+      * insert into participate (student_id, group_id) values ("20160759", 3);
+  * 출력 :
+    * {success: true}
+
 * POST /group/participate/accept
-  * 입력 : session, part_sid, part_gid
+
+  * group owner 가 자신의 그룹에 보내진 참가 요청을 수락
+  * 입력 : 
+    * student_id: "20160759" (현재 유저)
+    * part_student_id: "20160123" (참가 요청을 보낸 유저)
+    * part_group_id: 3
   * 과정 :
     * 체크 루틴
       * part_sid, part_gid, is_pending=1 이 존재하는지
       * sid, part_gid, is_owner=1 이 존재하는지
-      * max 를 넘지 않는지 (concurrency 는 무시) => 귀찮으면 
+      * max 를 넘지 않는지 (concurrency 는 무시) => 체크 안 함 
     * is_pending 을 0 으로 수정
-  * 출력 : 성공 여부 (왜 안 되었는지)
-* /group/search
-  * 입력 : keyword
+  * 출력 :
+    * {success: true}
+    * {success: false, msg: "~"}
+      * "wrong participation information"
+      * "you have no authority to accept participation"
+
+* POST /group/participate/reject
+
+  * group owner 가 자신의 그룹에 보내진 참가 요청을 거절
+  * 입력 : 
+    - student_id: "20160759" (현재 유저)
+    - part_student_id: "20160123" (참가 요청을 보낸 유저)
+    - part_group_id: 3
+  * 과정 :
+    - 체크 루틴
+      - part_sid, part_gid, is_pending=1 이 존재하는지
+      - sid, part_gid, is_owner=1 이 존재하는지
+      - max 를 넘지 않는지 (concurrency 는 무시) => 체크 안 함 
+    - 해당 요청을 DB 에서 삭제
+  * 출력 :
+    - {success: true}
+    - {success: false, msg: "~"}
+      - "wrong participation information"
+      - "you have no authority to reject participation"
+
+* POST /group/endRecruit
+
+  * group owner 가 그룹 모집을 마감
+  * 입력 : 
+    * student_id : "20160759" (현재 유저)
+    * group_id : 3 (마감하고자 하는 group)
+  * 과정 :
+    * 체크 루틴
+      * student_id 가 group_id 의 owner 인가?
+        * select * from participate where student_id="20160759" and group_id=3 and is_owner=1;
+    * 해당 그룹의 모집을 종료
+      * update group set is_recruiting = false where group_id=3;
+  * 출력 :
+    * {success: true}
+    * {success: false, msg: "~"}
+      * "you have no authority to end recruitment"
+
+* POST /group/deleteGroup
+
+  * group owner 가 그룹을 삭제
+  * 입력 :
+    - student_id : "20160759" (현재 유저)
+    - group_id : 3 (삭제하고자 하는 group)
+  * 과정 :
+    - 체크 루틴
+      - student_id 가 group_id 의 owner 인가?
+        - select * from participate where student_id="20160759" and group_id=3 and is_owner=1;
+    - 해당 그룹을 삭제
+      - delete from group where group_id=3;
+  * 출력 :
+    - {success: true}
+    - {success: false, msg: "~"}
+      - "you have no authority to delete group"
+
+* /group/list
+  * 입력 : 없음
+
   * 과정 : 
-    * 검색 문구가 title / tags / desc 에 있는지를 체크 (카테고리까지는 굳이?)
-  * 그룹 리스트를 반환
 
+    * 카테고리 테이블과 join
+    * 그룹 (카테고리 테이블과 join) 의 리스트를 반환
 
+  * 출력 :
 
-{success, msg, }
+    * ```json
+      {
+        success: true, 
+        result: [
+          {
+            group_id: 1,
+            title: 'test',
+            capacity: 10,
+            desc: 'Hello, this is test group!',
+            deadline: 2019-05-25T13:07:07.000Z,
+            workload: 'hard',
+            tag: '#test# #fun#',
+            is_recruiting: 1,
+            category_id: 7,
+            created_at: 2019-05-25T13:07:07.000Z,
+            updated_at: 2019-05-25T13:07:07.000Z,
+            category_name: 'coding'
+          },
+          ...
+        ]
+      }
+      ```
 
 
 
@@ -157,5 +380,17 @@
 * timestamp 관리가 힘드네 (유저한테 타임 정보가 어케 들어올 지를 모르겠고, string => mysql timestamp 로 어케 바꾸는 지 모르겠음)
 * group
   * 모든 handler 앞에 session 체크하기
-  * category 속성 네이밍이 불편 ㅠㅠ category_id 였으면 좋겠음
+  * category 속성 네이밍이 불편 ㅠㅠ category_id 였으면 좋겠음 -> 적용
   * purpose 사라졌음...
+
+
+
+
+
+### TODO
+
+* ~~그룹 : 모집 마감 되었는지 여부를 저장하는 tiny int~~
+* 그룹 : category 속성을 category_id 로 수정
+* 카테고리 : 1-level 로 수정 (나중에 ERD 다시 캡처 필요)
+* Student_id 를 세션에서 받고 싶은데 일단은 json 으로 받도록 함
+
