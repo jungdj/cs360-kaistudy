@@ -1,7 +1,6 @@
 var express = require('express');
 var router = express.Router();
 var knex = require('knex')(require('../knexfile').test);
-var _ = require('underscore');
 
 // It's better to move it to js about account router.
 function checkAuth(req, res, next) {
@@ -58,10 +57,6 @@ function checkGroup_POST(req, res, next) {
   .catch(console.error);
 }
 
-router.get('/register', checkAuth, (req, res) => {
-  res.send('그룹 생성 페이지');
-});
-
 
 router.post('/register', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category, tag} = req.body;
@@ -102,7 +97,7 @@ router.post('/register', checkAuth, (req, res) => {
       deadline: deadline,
       workload: workload,
       tag: tag,
-      category: category_id
+      category_id: category_id
     })
     //.returning("group_id"); returning is not supported in mysql
   })
@@ -115,7 +110,7 @@ router.post('/register', checkAuth, (req, res) => {
       is_pending: false
     })
     .then(() => {
-      res.redirect(`./manage/${group_id}`);
+      res.json({success: true, result: {group_id: group_id}});
     });
   })
   .catch(console.error);
@@ -124,85 +119,120 @@ router.post('/register', checkAuth, (req, res) => {
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id); // verified in checkGroup
   var student_id = req.session.student_id;
-
-  // TODO: check whether the user is owner of the group
-  // - select 1 from participate where group_id=${group_id}
-  //                                and student_id=${student_id}
-  //                                and is_owner=true
+  result = {};
   
-  // Retrieve group_detail & part_detail (members & incoming request)
-  // - select * from group join category
-  //        on group.category=category.category_id
-  //        where group_id=${group_id};
-  // - select stu.first_name, stu.last_name, stu.gender,
-  //          stu.phone_number, stu.email, part.is_owner, part_is_pending
-  //          from (select * from participate where group_id=${group_id}) as part
-  //          join student as stu on part.student_id=stu.student_id;
-  knex('group')
-  .select('*')
-  .join('category', 'group.category', 'category.category_id') // 카테고리는 귀찮아서 그냥 join 때림
-  .where('group_id', group_id)
+  // Check whether the user is owner of the group
+  knex('participate')
+  .where({
+    group_id: group_id,
+    student_id: student_id,
+    is_owner: true
+  })
   .then(q_res => {
-    var group_detail = q_res[0][0];
-    return knex.select( // 여기서 return 하면 프로미스 잘 처리 되는지 헷갈림
-        'stu.first_name',
-        'stu.last_name',
-        'stu.gender',
-        'stu.phone_number',
-        'stu.email',
-        'part.is_owner',
-        'part.is_pending'
-      )
-      .from(() => {
-        this.select('*').from('participate')
-            .where('group_id', group_id)
-            .as('part')
-      })
-      .join('student as stu', 'part.student_id', 'stu.student_id')
-      .then(q_res => {
-        var part_detail = q_res[0][0];
-        // TODO: Using group_detail & part_details & , render proper page
-        res.send('그룹 관리 페이지');
+    if (q_res[0].length <= 0) {
+      res.json({success: false, msg: "no authority"});
+    } else {
+      // Retrieve group_detail & part_detail (members & incoming request)
+      return Promise.all([
+        knex.raw(`select * from \`group\` natural left join
+            (select category_id, name as category_name from category) as c
+            where group_id=${group_id}`)
+          .then(q_res => {
+            result["group_detail"] = q_res[0][0];
+          }),
+        knex.select('*')
+          .from(() => {
+            this.select('*').from('participate')
+                .where('group_id', group_id)
+                .as('part')
+          })
+          .joinRaw('natural join student')
+          .then(q_res => {
+            result["part_detail"] = q_res[0][0];
+          })
+      ])
+      .then(() => {
+        res.json({success: true, result: result});
       });
-  }).catch(console.error);
+    }
+  })
+  .catch(console.error);
 });
 
-router.get('/view', checkAuth, checkGroup_GET, (req, res) => {
+router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id);
   var student_id = req.session.student_id;
+  var result = {};
 
-  // TODO: check the user's status in the group => button [participate / requesting / already in]
-  // - select is_pending from participate where student_id=${student_id}
-  //                                 and group_id=${group_id}
-  //   result == empty => participate button
-  //   result != empty
-  //      is_pending == true => requesting button
-  //      is_pending == false => already in button
-
-
-  knex('group')
-  .select('*')
-  .join('category', 'group.category', 'category.category_id')
-  .where('group_id', parseInt(group_id))
-  .then(q_res => {
-    var group_detail = q_res[0][0];
-    // TODO: retrieve group_owner info
-    // (TODO): retrieve comments in the group (maybe done in client-side by POST /group/comment/list)
-
-    // TODO: render with group_detail, (comment_details) and proper button
-    res.send('그룹 정보 열람 페이지');
-  }).catch(console.error);
+  Promise.all([
+    // Check the user's status in the group to show
+    // proper button (participate / requesting / already in)
+    knex('participate')
+      .select("is_pending")
+      .where({
+        student_id: student_id,
+        group_id: group_id
+      })
+      .then(q_res => {
+        if (q_res[0].length <= 0) {
+          result["user_status"] = 0; // "Participate" button needed
+        } else if (q_res[0][0].is_pending) {
+          result["user_status"] = 1; // "Requesting" button needed
+        } else {
+          result["user_status"] = 2; // "Already in" button needed
+        }
+      }),
+    // retrieve group_detail
+    knex.raw(`select * from \`group\` natural left join 
+      (select category_id, name as category_name from category) as c
+      where group_id=${group_id}`)
+      .then(q_res => {
+        result["group_detail"] = q_res[0][0];
+      }),
+    // retrieve owner info
+    knex('participate')
+    .select("student_id")
+    .where('group_id', group_id)
+    .then(q_res => {
+      var owner_id = q_res[0][0].student_id;
+      return knex('student')
+        .where('student_id', student_id)
+        .then(q_res2 => {
+          result["owner_info"] = q_res2[0][0];
+        });
+    })
+  ])  
+  .then(() => {
+    res.json({success: true, result: result});
+  })
+  .catch(console.error);
 });
 
-router.post('/comment/new/', checkAuth, checkGroup_POST, (req, res) => {
+router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
   var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, parent_comment_id} = req.body;
   
-  // TODO: check validity of parent_comment_id (parent_comment_id should be 1-level & in group_id)
+  // Check validity of parent_comment_id (parent_comment_id should be 1-level & in group_id)
   // - select 1 from comment where comment_id=${parent_comment_id}
   //                            and parent_comment=null
   //                            and group_id=${group_id}
+  if (parent_comment_id != undefined) {
+    await knex('comment')
+      .select('comment_id')
+      .where({
+        comment_id: parent_comment_id,
+        parent_comment_id: null,
+        group_id: group_id
+      })
+      .then(q_res => {
+        if (q_res[0].length <= 0) {
+          res.json({success: false, msg: "wrong parent comment"})
+        }
+      });
+  } else {
+    parent_comment_id = null;
+  }
 
   knex('comment')
   .insert({
@@ -212,7 +242,7 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, (req, res) => {
     parent_comment_id: parent_comment_id
   })
   .then(q_res => {
-    res.send('1');
+    res.json({success: true});
   }).catch(console.error);
 });
 
@@ -226,23 +256,35 @@ router.post('/comment/modify/', checkAuth, checkGroup_POST, (req, res) => {
   // - update comment set text="${text(sanitized)}"
   //    where group_id=${group_id} and comment_id=${comment_id} and student_id=${};
   
+  // Not implemented yet
 });
 
-router.post('/comment/list/', checkAuth, checkGroup_POST, (req, res) => {
-  var group_id = parseInt(req.body.group_id);
+router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
+  var group_id = parseInt(req.query.group_id);
 
-  // TODO: Get all comments in the group
-  // - select * from comment where group_id=${group_id};
+  // Get all comments in the group
+  knex('comment')
+  .joinRaw('natural join student')
+  .where('group_id', group_id)
+  .then(q_res => {
+    res.json({success: true, result: q_res[0]})
+  })
 });
 
-router.post('/participate/list/', checkAuth, checkGroup_POST, (req, res) => {
-  var group_id = parseInt(req.body.group_id);
+router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
+  var group_id = parseInt(req.query.group_id);
   var student_id = req.session.student_id;
 
-  knex.raw(`select is_owner, is_pending from participate where student_id=${student_id} and group_id=${group_id};`)
+  // - select is_owner, is_pending from participate where student_id=${student_id} and group_id=${group_id};
+  knex('participate')
+  .select("is_owner", "is_pending")
+  .where({
+    student_id: student_id,
+    group_id: group_id
+  })
   .then(q_res => {
     if (q_res[0].length <= 0) {
-      res.json({success: false});
+      res.json({success: false, msg: "no authority"});
       return;
     }
 
@@ -255,9 +297,11 @@ router.post('/participate/list/', checkAuth, checkGroup_POST, (req, res) => {
       return;
     }
 
+    // Check which participation data to send
     if (is_owner) {
       // For owner
       return knex('participate')
+      .joinRaw("natural join student")
       .where('group_id', group_id)
       .then(q_res => {
         res.json({success: true, result: q_res[0]});
@@ -265,6 +309,7 @@ router.post('/participate/list/', checkAuth, checkGroup_POST, (req, res) => {
     } else {
       // For non-owner member
       return knex('participate')
+      .joinRaw("natural join student")
       .where({
         'group_id': group_id,
         'is_pending': 0,
@@ -297,22 +342,151 @@ router.post('/participate/accept', checkAuth, (req, res) => {
   var student_id = req.session.student_id;
 
   // Two check routines
-  
-
+  Promise.all([
+    knex('participate')
+      .where({
+        student_id: part_group_id,
+        group_id: part_group_id,
+        is_pending: 1
+      })
+      .then(q_res => {
+        if(q_res[0].length <= 0) {
+          Promise.reject("wrong participation information");
+          return;
+        }
+      }),
+    knex('participate')
+      .where({
+        student_id: student_id,
+        group_id: part_group_id,
+        is_owner: true
+      })
+      .then(q_res => {
+        if(q_res[0].length <= 0) {
+          Promise.reject("you have no authority to accept participation");
+          return;
+        }
+      })
+  ])
+  .then(() => {
+    knex('participate')
+    .where({
+      student_id: part_student_id,
+      group_id: part_group_id
+    })
+    .update({is_pending: 0})
+    .then(() => {
+      res.json({success: true});
+    })
+    .catch(console.error);
+  })
+  .catch(msg => {
+    res.json({success: false, msg: msg});
+  });
 });
 
 router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
-  var group_id = parseInt(req.body.group_id);
+  var {part_student_id, part_group_id} = req.body;
+  var student_id = req.session.student_id;
+
+  // Two check routines
+  Promise.all([
+    knex('participate')
+      .where({
+        student_id: part_group_id,
+        group_id: part_group_id,
+        is_pending: 1
+      })
+      .then(q_res => {
+        if(q_res[0].length <= 0) {
+          Promise.reject("wrong participation information");
+          return;
+        }
+      }),
+    knex('participate')
+      .where({
+        student_id: student_id,
+        group_id: part_group_id,
+        is_owner: true
+      })
+      .then(q_res => {
+        if(q_res[0].length <= 0) {
+          Promise.reject("you have no authority to reject participation");
+          return;
+        }
+      })
+  ])
+  .then(() => {
+    knex('participate')
+    .where({
+      student_id: part_student_id,
+      group_id: part_group_id
+    })
+    .delete()
+    .then(() => {
+      res.json({success: true});
+    })
+    .catch(console.error);
+  })
+  .catch(msg => {
+    res.json({success: false, msg: msg});
+  });
 });
 
-router.post('/finish', checkAuth, checkGroup_POST, (req, res) => {
+router.post('/endRecruit', checkAuth, checkGroup_POST, (req, res) => {
   var group_id = parseInt(req.body.group_id);
+  var student_id = req.session.student_id;
+
+  // Check authority of user to end recruitment of the group
+  knex('participate')
+  .where({
+    student_id: student_id,
+    group_id: group_id,
+    is_owner: true
+  })
+  .then(q_res => {
+    if (q_res[0].length <= 0) {
+      res.json({success: false, msg: "you have no authority to end recruitment"});
+      return;
+    }
+    return knex('group')
+    .where("group_id", group_id)
+    .update("is_recruiting", false)
+    .then(() => {
+      res.json({success: true})
+    });
+  })
+  .catch(console.error);
+});
+
+router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
+  var student_id = req.session.student_id;
+
+  // Check authority of user to delete the group
+  knex('participate')
+  .where({
+    student_id: student_id,
+    group_id: group_id,
+    is_owner: true
+  })
+  .then(q_res => {
+    if (q_res[0].length <= 0) {
+      res.json({success: false, msg: "you have no authority to delete group"});
+      return;
+    }
+    return knex('group')
+    .where("group_id", group_id)
+    .delete()
+    .then(() => {
+      res.json({success: true})
+    });
+  })
+  .catch(console.error);
 });
 
 router.post('/list', (req, res) => {
-  knex('group')
-  .select('*')
-  .join('category', 'group.category', 'category.category_id')
+  knex.raw("select * from `group` natural left join (select category_id, name as category_name from category) as c")
   .then(q_res => {
     res.json({success: true, result: q_res[0]})
   })  
