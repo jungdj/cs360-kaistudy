@@ -12,12 +12,12 @@ function checkAuth(req, res, next) {
   }
 }
 
-function checkGroup(req, res, next) {
+function checkGroup_GET(req, res, next) {
   var group_id = parseInt(req.query.group_id);
   
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
-    res.send('wrong group id');
+    res.json({success: false, msg: "wrong group id"});
     return;
   }
 
@@ -26,8 +26,31 @@ function checkGroup(req, res, next) {
   .select('group_id')
   .where('group_id', group_id)
   .then(q_res => {
-    if (_.isEmpty(q_res)) {
-      res.send('wrong group id');
+    if (q_res[0].length <= 0) {
+      res.json({success: false, msg: "wrong group id"});
+    } else {
+      next();
+    }
+  })
+  .catch(console.error);
+}
+
+function checkGroup_POST(req, res, next) {
+  var group_id = parseInt(req.body.group_id);
+  
+  // check whether group_id is given & is integer string
+  if (isNaN(group_id)) {
+    res.json({success: false, msg: "wrong group id"});
+    return;
+  }
+
+  // check whether group_id exists in DB
+  knex('group')
+  .select('group_id')
+  .where('group_id', group_id)
+  .then(q_res => {
+    if (q_res[0].length <= 0) {
+      res.json({success: false, msg: "wrong group id"});
     } else {
       next();
     }
@@ -64,10 +87,10 @@ router.post('/register', checkAuth, (req, res) => {
   .select('category_id')
   .where('name', category)
   .then(q_res => {
-    if (_.isEmpty(q_res)) {
+    if (q_res[0].length <= 0) {
       return null;
     } else {
-      return q_res.category_id;
+      return q_res[0][0]["category_id"];
     }
   }) 
   .then(category_id => {
@@ -81,7 +104,7 @@ router.post('/register', checkAuth, (req, res) => {
       tag: tag,
       category: category_id
     })
-    .returning("group_id");
+    //.returning("group_id"); returning is not supported in mysql
   })
   .then(group_id => {
     return knex('participate')
@@ -91,15 +114,14 @@ router.post('/register', checkAuth, (req, res) => {
       is_owner: true,
       is_pending: false
     })
-    .returning("group_id");
-  })
-  .then(group_id => {
-    res.redirect(`./manage/${group_id}`);
+    .then(() => {
+      res.redirect(`./manage/${group_id}`);
+    });
   })
   .catch(console.error);
 });
 
-router.get('/manage', checkAuth, checkGroup, (req, res) => {
+router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id); // verified in checkGroup
   var student_id = req.session.student_id;
 
@@ -117,9 +139,11 @@ router.get('/manage', checkAuth, checkGroup, (req, res) => {
   //          from (select * from participate where group_id=${group_id}) as part
   //          join student as stu on part.student_id=stu.student_id;
   knex('group')
+  .select('*')
   .join('category', 'group.category', 'category.category_id') // 카테고리는 귀찮아서 그냥 join 때림
   .where('group_id', group_id)
-  .then(group_detail => {
+  .then(q_res => {
+    var group_detail = q_res[0][0];
     return knex.select( // 여기서 return 하면 프로미스 잘 처리 되는지 헷갈림
         'stu.first_name',
         'stu.last_name',
@@ -135,14 +159,15 @@ router.get('/manage', checkAuth, checkGroup, (req, res) => {
             .as('part')
       })
       .join('student as stu', 'part.student_id', 'stu.student_id')
-      .then(part_details => {
+      .then(q_res => {
+        var part_detail = q_res[0][0];
         // TODO: Using group_detail & part_details & , render proper page
         res.send('그룹 관리 페이지');
       });
   }).catch(console.error);
 });
 
-router.get('/view', checkAuth, checkGroup, (req, res) => {
+router.get('/view', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id);
   var student_id = req.session.student_id;
 
@@ -156,9 +181,11 @@ router.get('/view', checkAuth, checkGroup, (req, res) => {
 
 
   knex('group')
+  .select('*')
   .join('category', 'group.category', 'category.category_id')
   .where('group_id', parseInt(group_id))
-  .then(group_detail => {
+  .then(q_res => {
+    var group_detail = q_res[0][0];
     // TODO: retrieve group_owner info
     // (TODO): retrieve comments in the group (maybe done in client-side by POST /group/comment/list)
 
@@ -167,8 +194,8 @@ router.get('/view', checkAuth, checkGroup, (req, res) => {
   }).catch(console.error);
 });
 
-router.post('/comment/new/', checkAuth, checkGroup, (req, res) => {
-  var group_id = parseInt(req.query.group_id);
+router.post('/comment/new/', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, parent_comment_id} = req.body;
   
@@ -185,12 +212,12 @@ router.post('/comment/new/', checkAuth, checkGroup, (req, res) => {
     parent_comment_id: parent_comment_id
   })
   .then(q_res => {
-    res.send('new comment added');
+    res.send('1');
   }).catch(console.error);
 });
 
-router.post('/comment/modify/', checkAuth, checkGroup, (req, res) => {
-  var group_id = parseInt(req.query.group_id);
+router.post('/comment/modify/', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, comment_id} = req.body;
   
@@ -201,35 +228,94 @@ router.post('/comment/modify/', checkAuth, checkGroup, (req, res) => {
   
 });
 
-router.post('/comment/list/', checkAuth, checkGroup, (req, res) => {
-  var group_id = parseInt(req.query.group_id);
+router.post('/comment/list/', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
 
   // TODO: Get all comments in the group
   // - select * from comment where group_id=${group_id};
 });
 
-router.post('/participate/new/', (req, res) => {
+router.post('/participate/list/', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
+  var student_id = req.session.student_id;
+
+  knex.raw(`select is_owner, is_pending from participate where student_id=${student_id} and group_id=${group_id};`)
+  .then(q_res => {
+    if (q_res[0].length <= 0) {
+      res.json({success: false});
+      return;
+    }
+
+    var part_status = q_res[0][0];
+    var is_owner = part_status["is_owner"];
+    var is_member = !part_status["is_pending"];
+    if (!is_member) {
+      // For non-member
+      res.json({success: false, msg: "no authority"});
+      return;
+    }
+
+    if (is_owner) {
+      // For owner
+      return knex('participate')
+      .where('group_id', group_id)
+      .then(q_res => {
+        res.json({success: true, result: q_res[0]});
+      });
+    } else {
+      // For non-owner member
+      return knex('participate')
+      .where({
+        'group_id': group_id,
+        'is_pending': 0,
+      })
+      .then(q_res => {
+        res.json({success: true, result: q_res[0]});
+      });
+    }
+  })
+  .catch(console.error)
+});
+
+router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
+  var student_id = req.session.student_id;
+
+  knex('participate')
+  .insert({
+    student_id: student_id,
+    group_id: group_id
+  })
+  .then(() => {
+    res.json({success: true});
+  })
+  .catch(console.error);
+});
+
+router.post('/participate/accept', checkAuth, (req, res) => {
+  var {part_student_id, part_group_id} = req.body;
+  var student_id = req.session.student_id;
+
+  // Two check routines
+  
 
 });
 
-router.post('/participate/accept', (req, res) => {
-
+router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
 });
 
-router.post('/participate/reject', (req, res) => {
-
-});
-
-router.post('/finish', (req, res) => {
-
+router.post('/finish', checkAuth, checkGroup_POST, (req, res) => {
+  var group_id = parseInt(req.body.group_id);
 });
 
 router.post('/list', (req, res) => {
-
-});
-
-router.post('/search', (req, res) => {
-
+  knex('group')
+  .select('*')
+  .join('category', 'group.category', 'category.category_id')
+  .then(q_res => {
+    res.json({success: true, result: q_res[0]})
+  })  
 });
 
 module.exports = router;
