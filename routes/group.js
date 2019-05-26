@@ -31,7 +31,10 @@ function checkGroup_GET(req, res, next) {
       next();
     }
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error)
+  });
 }
 
 function checkGroup_POST(req, res, next) {
@@ -54,7 +57,10 @@ function checkGroup_POST(req, res, next) {
       next();
     }
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error)
+  });
 }
 
 
@@ -121,7 +127,10 @@ router.post('/', checkAuth, (req, res) => {
       res.json({success: true, result: {group_id: group_id}});
     });
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
@@ -164,7 +173,10 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
       });
     }
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
@@ -216,7 +228,10 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
   .then(() => {
     res.json({success: true, result: result});
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
@@ -254,7 +269,10 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
   })
   .then(() => {
     res.json({success: true});
-  }).catch(console.error);
+  }).catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.post('/comment/modify/', checkAuth, checkGroup_POST, (req, res) => {
@@ -330,7 +348,10 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
       });
     }
   })
-  .catch(console.error)
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  })
 });
 
 router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
@@ -345,7 +366,10 @@ router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
   .then(() => {
     res.json({success: true});
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.post('/participate/accept', checkAuth, (req, res) => {
@@ -389,7 +413,10 @@ router.post('/participate/accept', checkAuth, (req, res) => {
     .then(() => {
       res.json({success: true});
     })
-    .catch(console.error);
+    .catch((error) => {
+      console.log(error); 
+      res.status(500).send(error);
+    });
   })
   .catch(msg => {
     res.json({success: false, msg: msg});
@@ -437,7 +464,10 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
     .then(() => {
       res.json({success: true});
     })
-    .catch(console.error);
+    .catch((error) => {
+      console.log(error);
+      res.status(500).send(error);
+    });
   })
   .catch(msg => {
     res.json({success: false, msg: msg});
@@ -467,7 +497,10 @@ router.post('/endRecruit', checkAuth, checkGroup_POST, (req, res) => {
         res.json({success: true});
       });
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
@@ -493,7 +526,10 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
         res.json({success: true});
       });
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error)
+  });
 });
 
 router.get('/list', (req, res) => {
