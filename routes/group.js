@@ -182,7 +182,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   })
   .then(q_res => {
     if (q_res.length <= 0) {
-      res.json({status: 401, msg: "no authority"});
+      res.json({status: 401, msg: "No authority"});
     } else {
       // Retrieve group_detail & part_detail (members & incoming request)
       return Promise.all([
@@ -200,7 +200,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
                 .where('group_id', group_id)
                 .as('p')
           })
-          .joinRaw("natural join student")
+          .joinRaw('natural join (select student_id, email, first_name, last_name, phone_number from student) as s')
           .then(part_details => {
             result["part_detail"] = part_details;
           })
@@ -258,7 +258,8 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
       return knex('student')
         .where('student_id', student_id)
         .then(students => {
-          result["owner_info"] = students[0];
+          const {password, ...owner} = students[0];
+          result["owner_info"] = owner;
         });
     })
   ])
@@ -325,6 +326,7 @@ router.post('/comment/modify/', checkAuth, checkGroup_POST, (req, res) => {
   // Not implemented yet
 });
 
+// Since comment listing does not require authorization, it's added just like /group/detail
 router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id);
 
@@ -337,7 +339,7 @@ router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
       .where('group_id', group_id)
       .as('cmt')
   })
-  .joinRaw('natural join student')
+  .joinRaw('natural join (select student_id, email, first_name, last_name, phone_number from student) as s')
   .then(comments => {
     res.json({status: 200, data: comments})
   })
@@ -379,7 +381,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
               .where('group_id', group_id)
               .as('p')
         })
-      .joinRaw("natural join student")
+      .joinRaw('natural join (select student_id, email, first_name, last_name, phone_number from student) as s')
       .then(part_details => {
         res.json({status: 200, data: part_details});
       });
@@ -395,7 +397,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
             })
             .as('p')
       })
-      .joinRaw("natural join student")
+      .joinRaw('natural join (select student_id, email, first_name, last_name, phone_number from student) as s')
       .then(part_details => {
         res.json({status: 200, data: part_details});
       });
