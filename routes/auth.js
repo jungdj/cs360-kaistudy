@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 var knex = require('knex')(require('../knexfile').development);
 
-
 router.get('/', function(req, res) {
   const { student_id } = req.session
   if (student_id) {
@@ -51,18 +50,22 @@ router.post("/signin", function(req, res, next) {
     const { student_id, password } = req.body
     console.log('id', req.session.student_id)
     knex('student')
-        .where({ student_id, password })
-      .then(user => {
-        console.log({ user })
+      .where({ student_id, password })
+      .then(users => {
+        console.log({ users })
         req.session.student_id = student_id
+        const { password, ...user } = users[0]
         res.json({
           status: 200,
-          data: user[0]
+          data: user
         });
       })
       .catch(error => {
         console.log(error)
-        res.status(500).send(error)
+        res.status(401).json({
+          status: 401,
+          data: "Student id and password not matched"
+        })
       })
   });
 
