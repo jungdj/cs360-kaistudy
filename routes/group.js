@@ -358,7 +358,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
   })
   .then(states => {
     if (states.length <= 0) {
-      res.status(401).json({status: 401, msg: "no authority"});
+      res.status(401).json({status: 401, msg: "No authority"});
       return;
     }
 
@@ -367,7 +367,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
     var is_member = !part_status["is_pending"];
     if (!is_member) {
       // For non-member
-      res.status(401).json({status: 401, msg: "no authority"});
+      res.status(401).json({status: 401, msg: "No authority"});
       return;
     }
 
@@ -579,15 +579,34 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
   })
   .catch((error) => {
     console.log(error);
-    res.status(500).send(error)
+    res.status(500).send(error);
   });
 });
 
 router.get('/list', (req, res) => {
   knex.raw("select * from `group` natural left join (select category_id, name as category_name from category) as c")
   .then(q_res => {
-    res.status(200).json({status: 200, data: q_res[0]})
+    const result = [];
+    return Promise.all(
+      q_res[0].map(group => {
+        return knex('participate').count('*').where({
+          group_id: group["group_id"],
+          is_pending: false
+        })
+        .then(member_cnt => {
+          group["member_cnt"] = member_cnt;
+          result.push(group);
+        })
+      })
+    )
+    .then(() => {
+      res.status(200).json({status: 200, data: result});
+    })
   })
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
 });
 
 module.exports = router;
