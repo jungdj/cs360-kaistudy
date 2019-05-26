@@ -71,7 +71,16 @@ function checkGroup_POST(req, res, next) {
  DELETE /group
  PUT /group
  */
-
+/*
+  {
+    title: "",
+    description: "",
+    participants: {
+      owner: owner_id,
+      members: [...members_id]
+    }
+  }
+ */
 router.post('/', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category_name, tag} = req.body;
   var student_id = req.session.student_id;
@@ -140,6 +149,32 @@ router.post('/', checkAuth, (req, res) => {
   });
 });
 
+router.get('/:group_id', function(req, res, next) {
+  const { group_id } = req.params
+  if (group_id) {
+    knex('group')
+      .where({ group_id })
+      .then(groups => {
+        const group = groups[0]
+        res.json({
+          status: 200,
+          data: group
+        })
+      })
+      .catch(error => {
+        res.status(401).json({
+          status: 401,
+          data: "No group found"
+        })
+      })
+  } else {
+    res.status(400).json({
+      status: 400,
+      data: "Bad Request"
+    })
+  }
+});
+
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id); // verified in checkGroup
   var student_id = req.session.student_id;
@@ -164,7 +199,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
           .then(q_res2 => {
             result["group_detail"] = q_res2[0][0];
           }),
-        knex.select('')
+        knex.select('*')
           .from(function () {
             this.select('is_pending', 'is_owner', 'student_id', 'group_id',
               'created_at as part_created_at', 'updated_at as part_updated_at')
@@ -301,9 +336,15 @@ router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id);
 
   // Get all comments in the group
-  knex('comment')
+  knex.select("*")
+  .from(function () {
+    this.select("comment_id", "group_id", "student_id", "parent_comment_id",
+      "text", "created_at as comment_created_at")
+      .from("comment")
+      .where('group_id', group_id)
+      .as('cmt')
+  })
   .joinRaw('natural join student')
-  .where('group_id', group_id)
   .then(comments => {
     res.json({success: true, result: comments})
   })
@@ -338,20 +379,30 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
     // Check which participation data to send
     if (is_owner) {
       // For owner
-      return knex('participate')
+      return knex.from(function () {
+          this.select('is_pending', 'is_owner', 'student_id', 'group_id',
+            'created_at as part_created_at', 'updated_at as part_updated_at')
+              .from('participate')
+              .where('group_id', group_id)
+              .as('p')
+        })
       .joinRaw("natural join student")
-      .where('group_id', group_id)
       .then(part_details => {
         res.json({success: true, result: part_details});
       });
     } else {
       // For non-owner member
-      return knex('participate')
-      .joinRaw("natural join student")
-      .where({
-        'group_id': group_id,
-        'is_pending': 0,
+      return knex.from(function () {
+        this.select('is_pending', 'is_owner', 'student_id', 'group_id',
+          'created_at as part_created_at', 'updated_at as part_updated_at')
+            .from('participate')
+            .where({
+              group_id: group_id,
+              is_pending: false
+            })
+            .as('p')
       })
+      .joinRaw("natural join student")
       .then(part_details => {
         res.json({success: true, result: part_details});
       });
@@ -423,7 +474,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
       res.json({success: true});
     })
     .catch((error) => {
-      console.log(error); 
+      console.log(error);
       res.status(500).send(error);
     });
   })
