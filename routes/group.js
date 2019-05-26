@@ -16,7 +16,7 @@ function checkGroup_GET(req, res, next) {
 
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
-    res.json({success: false, msg: "wrong group id"});
+    res.json({status: 500, msg: "wrong group id"});
     return;
   }
 
@@ -26,7 +26,7 @@ function checkGroup_GET(req, res, next) {
   .where('group_id', group_id)
   .then(group => {
     if (group.length <= 0) {
-      res.json({success: false, msg: "wrong group id"});
+      res.json({status: 500, msg: "wrong group id"});
     } else {
       next();
     }
@@ -42,7 +42,7 @@ function checkGroup_POST(req, res, next) {
 
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
-    res.json({success: false, msg: "wrong group id"});
+    res.json({status: 500, msg: "wrong group id"});
     return;
   }
 
@@ -52,7 +52,7 @@ function checkGroup_POST(req, res, next) {
   .where('group_id', group_id)
   .then(group => {
     if (group.length <= 0) {
-      res.json({success: false, msg: "wrong group id"});
+      res.json({status: 500, msg: "wrong group id"});
     } else {
       next();
     }
@@ -81,6 +81,25 @@ function checkGroup_POST(req, res, next) {
     }
   }
  */
+
+router.get('/', checkGroup, (req, res) {
+  const { group_id } = parseInt(req.query.group_id);
+
+  knex('group')
+  .where({ group_id })
+  .then(groups => {
+    const group = groups[0]
+    res.json({
+      status: 200,
+      data: group
+    })
+  })
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
+});
+
 router.post('/', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category_name, tag} = req.body;
   var student_id = req.session.student_id;
@@ -139,7 +158,7 @@ router.post('/', checkAuth, (req, res) => {
             is_pending: false
           })
           .then(() => {
-            res.json({success: true, result: {group_id: group_id}});
+            res.json({status: 200, data: {group_id: group_id}});
           });
       });
   })
@@ -147,32 +166,6 @@ router.post('/', checkAuth, (req, res) => {
     console.log(error);
     res.status(500).send(error);
   });
-});
-
-router.get('/:group_id', function(req, res, next) {
-  const { group_id } = req.params
-  if (group_id) {
-    knex('group')
-      .where({ group_id })
-      .then(groups => {
-        const group = groups[0]
-        res.json({
-          status: 200,
-          data: group
-        })
-      })
-      .catch(error => {
-        res.status(401).json({
-          status: 401,
-          data: "No group found"
-        })
-      })
-  } else {
-    res.status(400).json({
-      status: 400,
-      data: "Bad Request"
-    })
-  }
 });
 
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
@@ -189,7 +182,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   })
   .then(q_res => {
     if (q_res.length <= 0) {
-      res.json({success: false, msg: "no authority"});
+      res.json({status: 401, msg: "no authority"});
     } else {
       // Retrieve group_detail & part_detail (members & incoming request)
       return Promise.all([
@@ -213,7 +206,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
           })
       ])
       .then(() => {
-        res.json({success: true, result: result});
+        res.json({status: 200, data: result});
       });
     }
   })
@@ -270,7 +263,7 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
     })
   ])
   .then(() => {
-    res.json({success: true, result: result});
+    res.json({status: 200, data: result});
   })
   .catch((error) => {
     console.log(error);
@@ -297,7 +290,7 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
       })
       .then(comments => {
         if (comments.length <= 0) {
-          res.json({success: false, msg: "wrong parent comment"})
+          res.json({status: 500, msg: "wrong parent comment"})
         }
       });
   } else {
@@ -312,7 +305,7 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
     parent_comment_id: parent_comment_id
   })
   .then(() => {
-    res.json({success: true});
+    res.json({status: 200, data: null});
   }).catch((error) => {
     console.log(error);
     res.status(500).send(error);
@@ -346,7 +339,7 @@ router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
   })
   .joinRaw('natural join student')
   .then(comments => {
-    res.json({success: true, result: comments})
+    res.json({status: 200, data: comments})
   })
 });
 
@@ -363,7 +356,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
   })
   .then(states => {
     if (states.length <= 0) {
-      res.json({success: false, msg: "no authority"});
+      res.json({status: 401, msg: "no authority"});
       return;
     }
 
@@ -372,7 +365,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
     var is_member = !part_status["is_pending"];
     if (!is_member) {
       // For non-member
-      res.json({success: false, msg: "no authority"});
+      res.json({status: 401, msg: "no authority"});
       return;
     }
 
@@ -388,7 +381,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
         })
       .joinRaw("natural join student")
       .then(part_details => {
-        res.json({success: true, result: part_details});
+        res.json({status: 200, data: part_details});
       });
     } else {
       // For non-owner member
@@ -404,7 +397,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
       })
       .joinRaw("natural join student")
       .then(part_details => {
-        res.json({success: true, result: part_details});
+        res.json({status: 200, data: part_details});
       });
     }
   })
@@ -424,7 +417,7 @@ router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
     group_id: group_id
   })
   .then(() => {
-    res.json({success: true});
+    res.json({status: 200, data: null});
   })
   .catch((error) => {
     console.log(error);
@@ -446,7 +439,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
       })
       .then(parts => {
         if(parts.length <= 0) {
-          Promise.reject("wrong participation information");
+          Promise.reject({status: 500, data: "wrong participation information"});
           return;
         }
       }),
@@ -458,7 +451,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
       })
       .then(parts => {
         if(parts.length <= 0) {
-          Promise.reject("you have no authority to accept participation");
+          Promise.reject({status: 401, data: "No authority"});
           return;
         }
       })
@@ -471,15 +464,15 @@ router.post('/participate/accept', checkAuth, (req, res) => {
     })
     .update({is_pending: 0})
     .then(() => {
-      res.json({success: true});
+      res.json({status: 200, data: null});
     })
     .catch((error) => {
       console.log(error);
       res.status(500).send(error);
     });
   })
-  .catch(msg => {
-    res.json({success: false, msg: msg});
+  .catch(result => {
+    res.json(result);
   });
 });
 
@@ -497,7 +490,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
       })
       .then(parts => {
         if(parts.length <= 0) {
-          Promise.reject("wrong participation information");
+          Promise.reject({status: 500, data: "wrong participation information"});
           return;
         }
       }),
@@ -509,7 +502,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
       })
       .then(parts => {
         if(parts.length <= 0) {
-          Promise.reject("you have no authority to reject participation");
+          Promise.reject({status: 401, data: "No authority"});
           return;
         }
       })
@@ -522,15 +515,15 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
     })
     .delete()
     .then(() => {
-      res.json({success: true});
+      res.json({status: 200, data: null});
     })
     .catch((error) => {
       console.log(error);
       res.status(500).send(error);
     });
   })
-  .catch(msg => {
-    res.json({success: false, msg: msg});
+  .catch(result => {
+    res.json(result);
   });
 });
 
@@ -547,14 +540,14 @@ router.post('/endRecruit', checkAuth, checkGroup_POST, (req, res) => {
   })
   .then(parts => {
     if (parts.length <= 0) {
-      res.json({success: false, msg: "you have no authority to end recruitment"});
+      res.json({status: 401, msg: "No authority"});
       return;
     }
     return knex('group')
       .where("group_id", group_id)
       .update("is_recruiting", false)
       .then(() => {
-        res.json({success: true});
+        res.json({status: 200, data: null});
       });
   })
   .catch((error) => {
@@ -576,14 +569,14 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
   })
   .then(parts => {
     if (parts.length <= 0) {
-      res.json({success: false, msg: "you have no authority to delete group"});
+      res.json({status: 401, msg: "No authority"});
       return;
     }
     return knex('group')
       .where("group_id", group_id)
       .delete()
       .then(() => {
-        res.json({success: true});
+        res.json({status: 200, data: null});
       });
   })
   .catch((error) => {
@@ -595,7 +588,7 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
 router.get('/list', (req, res) => {
   knex.raw("select * from `group` natural left join (select category_id, name as category_name from category) as c")
   .then(q_res => {
-    res.json({success: true, result: q_res[0]})
+    res.json({status: 200, data: q_res[0]})
   })
 });
 
