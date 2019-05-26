@@ -118,7 +118,7 @@ router.post('/', checkAuth, (req, res) => {
   .then(() => {
     return knex('group')
       .select('group_id')
-      .where('student_id', student_id)
+      .where('title', title) // assuming title is unique
       .then(group_ids => {
         const group_id = group_ids[0]["group_id"];
         return knex('participate')
