@@ -1,6 +1,6 @@
 var express = require('express');
 var router = express.Router();
-var knex = require('knex')(require('../knexfile').test);
+var knex = require('knex')(require('../knexfile').development);
 
 // It's better to move it to js about account router.
 function checkAuth(req, res, next) {
