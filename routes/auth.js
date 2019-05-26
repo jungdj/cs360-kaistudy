@@ -29,6 +29,11 @@ router.post('/logout', (req, res) => {
 /* GET users listing. */
 router.post('/signup', function(req, res, next) {
   const { email, password, first_name, last_name, student_id, phone_number } = req.body
+
+  if (!email || !password || !first_name || !last_name || !student_id || !phone_number) {
+      res.status(400).send("All fields must be")
+      return
+  }
   knex('student')
     .insert({
       email, password, first_name, last_name, student_id, phone_number
