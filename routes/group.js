@@ -449,15 +449,16 @@ router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
 });
 
 router.post('/participate/accept', checkAuth, (req, res) => {
-  var {part_student_id, part_group_id} = req.body;
+  var group_id = parseInt(req.body.group_id);
+  var part_student_id = req.body.student_id;
   var student_id = req.session.student_id;
 
   // Two check routines
   Promise.all([
     knex('participate')
       .where({
-        student_id: part_group_id,
-        group_id: part_group_id,
+        student_id: part_student_id,
+        group_id: group_id,
         is_pending: 1
       })
       .then(parts => {
@@ -468,7 +469,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
     knex('participate')
       .where({
         student_id: student_id,
-        group_id: part_group_id,
+        group_id: group_id,
         is_owner: true
       })
       .then(parts => {
@@ -481,7 +482,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
     knex('participate')
     .where({
       student_id: part_student_id,
-      group_id: part_group_id
+      group_id: group_id
     })
     .update({is_pending: 0})
     .then(() => {
@@ -498,15 +499,16 @@ router.post('/participate/accept', checkAuth, (req, res) => {
 });
 
 router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
-  var {part_student_id, part_group_id} = req.body;
+  var group_id = parseInt(req.body.group_id);
+  var part_student_id = req.body.student_id;
   var student_id = req.session.student_id;
 
   // Two check routines
   Promise.all([
     knex('participate')
       .where({
-        student_id: part_group_id,
-        group_id: part_group_id,
+        student_id: part_student_id,
+        group_id: group_id,
         is_pending: 1
       })
       .then(parts => {
@@ -517,7 +519,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
     knex('participate')
       .where({
         student_id: student_id,
-        group_id: part_group_id,
+        group_id: group_id,
         is_owner: true
       })
       .then(parts => {
@@ -530,7 +532,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
     knex('participate')
     .where({
       student_id: part_student_id,
-      group_id: part_group_id
+      group_id: group_id
     })
     .delete()
     .then(() => {
