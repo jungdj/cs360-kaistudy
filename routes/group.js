@@ -121,7 +121,10 @@ router.post('/', checkAuth, (req, res) => {
       res.json({success: true, result: {group_id: group_id}});
     });
   })
-  .catch(console.error);
+  .catch(error => {
+    console.error(error)
+    res.status(500).send(error)
+  });
 });
 
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
