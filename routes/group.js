@@ -76,6 +76,7 @@ router.post('/', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category_name, tag} = req.body;
   var student_id = req.session.student_id;
 
+  category_name = category_name.toLowerCase();
 
   // check capacity
   if (capacity === undefined) {
@@ -163,13 +164,15 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
           .then(q_res2 => {
             result["group_detail"] = q_res2[0][0];
           }),
-        knex.select('*')
-          .from(() => {
-            this.select('*').from('participate')
+        knex.select('')
+          .from(function () {
+            this.select('is_pending', 'is_owner', 'student_id', 'group_id',
+              'created_at as part_created_at', 'updated_at as part_updated_at')
+                .from('participate')
                 .where('group_id', group_id)
-                .as('part')
+                .as('p')
           })
-          .joinRaw('natural join student')
+          .joinRaw("natural join student")
           .then(part_details => {
             result["part_detail"] = part_details;
           })
