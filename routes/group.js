@@ -246,6 +246,13 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
       where group_id=${group_id}`)
       .then(q_res => {
         result["group_detail"] = q_res[0][0];
+        return knex('participate').count('*').where({
+            group_id: group_id,
+            is_pending: false
+          })
+          .then(member_cnt => {
+            result["group_detail"]["member_cnt"] = member_cnt[0]["count(*)"];
+          })
       }),
     // retrieve owner info
     knex('participate')
@@ -262,7 +269,20 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
           const {password, ...owner} = students[0];
           result["owner_info"] = owner;
         });
-    })
+    }),
+    // retrieve comment info
+    knex.select("*")
+      .from(function () {
+        this.select("comment_id", "group_id", "student_id", "parent_comment_id",
+          "text", "created_at as comment_created_at")
+          .from("comment")
+          .where('group_id', group_id)
+          .as('cmt')
+      })
+      .joinRaw('natural join (select student_id, email, first_name, last_name, phone_number from student) as s')
+      .then(comments => {
+        result["comment_info"] = comments;
+      })
   ])
   .then(() => {
     res.status(200).json({status: 200, data: result});
