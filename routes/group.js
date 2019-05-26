@@ -450,7 +450,7 @@ router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
 
 router.post('/participate/accept', checkAuth, (req, res) => {
   var group_id = parseInt(req.body.group_id);
-  var part_student_id = req.body.student_id;
+  var part_student_id = req.body.student_id; // POST param is student_id, not part_student_id
   var student_id = req.session.student_id;
 
   // Two check routines
@@ -459,7 +459,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
       .where({
         student_id: part_student_id,
         group_id: group_id,
-        is_pending: 1
+        is_pending: true
       })
       .then(parts => {
         if(parts.length <= 0) {
@@ -510,7 +510,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
       .where({
         student_id: part_student_id,
         group_id: group_id,
-        is_pending: 1
+        is_pending: true
       })
       .then(parts => {
         if(parts.length <= 0) {
@@ -627,6 +627,39 @@ router.get('/list', (req, res) => {
     .then(() => {
       res.status(200).json({status: 200, data: result});
     })
+  })
+  .catch((error) => {
+    console.log(error);
+    res.status(500).send(error);
+  });
+});
+
+router.get('/mygroup', checkAuth, (req, res) => {
+  const student_id = req.session.student_id;
+  knex('participate')
+  .select('group_id')
+  .where("student_id", student_id)
+  .then(rows => {
+    const result = [];
+    return Promise.all(
+      rows.map(row => {
+        const group_id = row["group_id"];
+        return knex.raw(`select * from \`group\` natural left join (select category_id, name as category_name from category) as c where group_id=${group_id}`)
+          .then(q_res => {
+            const group = q_res[0][0];
+            return knex('participate').count('*').where({
+                group_id: group["group_id"],
+                is_pending: false
+              })
+              .then(member_cnt => {
+                group["member_cnt"] = member_cnt[0]["count(*)"];
+                result.push(group);
+              });
+          });
+        })
+      ).then(() => {
+        res.status(200).json({status: 200, data: result});
+      });
   })
   .catch((error) => {
     console.log(error);
