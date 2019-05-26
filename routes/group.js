@@ -24,8 +24,8 @@ function checkGroup_GET(req, res, next) {
   knex('group')
   .select('group_id')
   .where('group_id', group_id)
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .then(group => {
+    if (group.length <= 0) {
       res.json({success: false, msg: "wrong group id"});
     } else {
       next();
@@ -47,8 +47,8 @@ function checkGroup_POST(req, res, next) {
   knex('group')
   .select('group_id')
   .where('group_id', group_id)
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .then(group => {
+    if (group.length <= 0) {
       res.json({success: false, msg: "wrong group id"});
     } else {
       next();
@@ -67,7 +67,7 @@ function checkGroup_POST(req, res, next) {
  */
 
 router.post('/', checkAuth, (req, res) => {
-  var {title, capacity, desc, deadline, workload, category, tag} = req.body;
+  var {title, capacity, desc, deadline, workload, category_name, tag} = req.body;
   var student_id = req.session.student_id;
 
 
@@ -88,12 +88,12 @@ router.post('/', checkAuth, (req, res) => {
   // then create group & participation
   knex('category')
   .select('category_id')
-  .where('name', category)
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .where('name', category_name)
+  .then(category => {
+    if (category.length <= 0) {
       return null;
     } else {
-      return q_res[0][0]["category_id"];
+      return category[0]["category_id"];
     }
   })
   .then(category_id => {
@@ -137,7 +137,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
     is_owner: true
   })
   .then(q_res => {
-    if (q_res[0].length <= 0) {
+    if (q_res.length <= 0) {
       res.json({success: false, msg: "no authority"});
     } else {
       // Retrieve group_detail & part_detail (members & incoming request)
@@ -145,8 +145,8 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
         knex.raw(`select * from \`group\` natural left join
             (select category_id, name as category_name from category) as c
             where group_id=${group_id}`)
-          .then(q_res => {
-            result["group_detail"] = q_res[0][0];
+          .then(q_res2 => {
+            result["group_detail"] = q_res2[0][0];
           }),
         knex.select('*')
           .from(() => {
@@ -155,8 +155,8 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
                 .as('part')
           })
           .joinRaw('natural join student')
-          .then(q_res => {
-            result["part_detail"] = q_res[0][0];
+          .then(part_details => {
+            result["part_detail"] = part_details;
           })
       ])
       .then(() => {
@@ -181,10 +181,10 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
         student_id: student_id,
         group_id: group_id
       })
-      .then(q_res => {
-        if (q_res[0].length <= 0) {
+      .then(states => {
+        if (states.length <= 0) {
           result["user_status"] = 0; // "Participate" button needed
-        } else if (q_res[0][0].is_pending) {
+        } else if (states[0].is_pending) {
           result["user_status"] = 1; // "Requesting" button needed
         } else {
           result["user_status"] = 2; // "Already in" button needed
@@ -200,13 +200,16 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
     // retrieve owner info
     knex('participate')
     .select("student_id")
-    .where('group_id', group_id)
-    .then(q_res => {
-      var owner_id = q_res[0][0].student_id;
+    .where({
+      group_id: group_id,
+      is_owner: true
+    })
+    .then(owners => {
+      var owner_id = owners[0].student_id;
       return knex('student')
         .where('student_id', student_id)
-        .then(q_res2 => {
-          result["owner_info"] = q_res2[0][0];
+        .then(students => {
+          result["owner_info"] = students[0];
         });
     })
   ])
@@ -233,8 +236,8 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
         parent_comment_id: null,
         group_id: group_id
       })
-      .then(q_res => {
-        if (q_res[0].length <= 0) {
+      .then(comments => {
+        if (comments.length <= 0) {
           res.json({success: false, msg: "wrong parent comment"})
         }
       });
@@ -249,7 +252,7 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
     group_id: group_id,
     parent_comment_id: parent_comment_id
   })
-  .then(q_res => {
+  .then(() => {
     res.json({success: true});
   }).catch(console.error);
 });
@@ -274,8 +277,8 @@ router.get('/comment/list/', checkAuth, checkGroup_GET, (req, res) => {
   knex('comment')
   .joinRaw('natural join student')
   .where('group_id', group_id)
-  .then(q_res => {
-    res.json({success: true, result: q_res[0]})
+  .then(comments => {
+    res.json({success: true, result: comments})
   })
 });
 
@@ -290,13 +293,13 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
     student_id: student_id,
     group_id: group_id
   })
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .then(states => {
+    if (states.length <= 0) {
       res.json({success: false, msg: "no authority"});
       return;
     }
 
-    var part_status = q_res[0][0];
+    var part_status = states[0];
     var is_owner = part_status["is_owner"];
     var is_member = !part_status["is_pending"];
     if (!is_member) {
@@ -311,8 +314,8 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
       return knex('participate')
       .joinRaw("natural join student")
       .where('group_id', group_id)
-      .then(q_res => {
-        res.json({success: true, result: q_res[0]});
+      .then(part_details => {
+        res.json({success: true, result: part_details});
       });
     } else {
       // For non-owner member
@@ -322,8 +325,8 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
         'group_id': group_id,
         'is_pending': 0,
       })
-      .then(q_res => {
-        res.json({success: true, result: q_res[0]});
+      .then(part_details => {
+        res.json({success: true, result: part_details});
       });
     }
   })
@@ -357,8 +360,8 @@ router.post('/participate/accept', checkAuth, (req, res) => {
         group_id: part_group_id,
         is_pending: 1
       })
-      .then(q_res => {
-        if(q_res[0].length <= 0) {
+      .then(parts => {
+        if(parts.length <= 0) {
           Promise.reject("wrong participation information");
           return;
         }
@@ -369,8 +372,8 @@ router.post('/participate/accept', checkAuth, (req, res) => {
         group_id: part_group_id,
         is_owner: true
       })
-      .then(q_res => {
-        if(q_res[0].length <= 0) {
+      .then(parts => {
+        if(parts.length <= 0) {
           Promise.reject("you have no authority to accept participation");
           return;
         }
@@ -405,8 +408,8 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
         group_id: part_group_id,
         is_pending: 1
       })
-      .then(q_res => {
-        if(q_res[0].length <= 0) {
+      .then(parts => {
+        if(parts.length <= 0) {
           Promise.reject("wrong participation information");
           return;
         }
@@ -417,8 +420,8 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
         group_id: part_group_id,
         is_owner: true
       })
-      .then(q_res => {
-        if(q_res[0].length <= 0) {
+      .then(parts => {
+        if(parts.length <= 0) {
           Promise.reject("you have no authority to reject participation");
           return;
         }
@@ -452,17 +455,17 @@ router.post('/endRecruit', checkAuth, checkGroup_POST, (req, res) => {
     group_id: group_id,
     is_owner: true
   })
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .then(parts => {
+    if (parts.length <= 0) {
       res.json({success: false, msg: "you have no authority to end recruitment"});
       return;
     }
     return knex('group')
-    .where("group_id", group_id)
-    .update("is_recruiting", false)
-    .then(() => {
-      res.json({success: true})
-    });
+      .where("group_id", group_id)
+      .update("is_recruiting", false)
+      .then(() => {
+        res.json({success: true});
+      });
   })
   .catch(console.error);
 });
@@ -478,17 +481,17 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
     group_id: group_id,
     is_owner: true
   })
-  .then(q_res => {
-    if (q_res[0].length <= 0) {
+  .then(parts => {
+    if (parts.length <= 0) {
       res.json({success: false, msg: "you have no authority to delete group"});
       return;
     }
     return knex('group')
-    .where("group_id", group_id)
-    .delete()
-    .then(() => {
-      res.json({success: true})
-    });
+      .where("group_id", group_id)
+      .delete()
+      .then(() => {
+        res.json({success: true});
+      });
   })
   .catch(console.error);
 });
