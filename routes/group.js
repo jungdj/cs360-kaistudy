@@ -82,7 +82,7 @@ function checkGroup_POST(req, res, next) {
   }
  */
 
-router.get('/', checkGroup, (req, res) => {
+router.get('/', checkGroup_GET, (req, res) => {
   const { group_id } = parseInt(req.query.group_id);
 
   knex('group')
