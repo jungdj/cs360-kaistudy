@@ -494,6 +494,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
     });
   })
   .catch(result => {
+    console.log(result);
     res.status(result.status).json(result);
   });
 });
@@ -544,6 +545,7 @@ router.post('/participate/reject', checkAuth, checkGroup_POST, (req, res) => {
     });
   })
   .catch(result => {
+    console.log(result);
     res.status(result.status).json(result);
   });
 });
