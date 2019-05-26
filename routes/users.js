@@ -1,9 +1,10 @@
 var express = require('express');
 var router = express.Router();
+var knex = require('knex')(require('../knexfile').development);
 
 /* GET users listing. */
 router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
+  res.json({})
 });
 
 module.exports = router;
