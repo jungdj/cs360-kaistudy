@@ -634,7 +634,8 @@ router.get('/list', (req, res) => {
   });
 });
 
-router.get('/mygroup', checkAuth, (req, res) => {
+// returns groups that current user belongs to
+router.get('/mypage', checkAuth, (req, res) => {
   const student_id = req.session.student_id;
   knex('participate')
   .select('group_id')
