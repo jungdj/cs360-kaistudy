@@ -5,7 +5,7 @@ var knex = require('knex')(require('../knexfile').development);
 // It's better to move it to js about account router.
 function checkAuth(req, res, next) {
   if (!req.session.student_id) {
-    res.redirect('/login');
+    res.json({status: 401, data: null});
   } else {
     next();
   }
@@ -115,17 +115,23 @@ router.post('/', checkAuth, (req, res) => {
     })
     //.returning("group_id"); returning is not supported in mysql
   })
-  .then(group_id => {
-    return knex('participate')
-    .insert({
-      group_id: group_id,
-      student_id: student_id,
-      is_owner: true,
-      is_pending: false
-    })
-    .then(() => {
-      res.json({success: true, result: {group_id: group_id}});
-    });
+  .then(() => {
+    return knex('group')
+      .select('group_id')
+      .where('student_id', student_id)
+      .then(group_ids => {
+        const group_id = group_ids[0]["group_id"];
+        return knex('participate')
+          .insert({
+            group_id: group_id,
+            student_id: student_id,
+            is_owner: true,
+            is_pending: false
+          })
+          .then(() => {
+            res.json({success: true, result: {group_id: group_id}});
+          });
+      });
   })
   .catch((error) => {
     console.log(error);
