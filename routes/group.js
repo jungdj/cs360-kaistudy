@@ -4,6 +4,7 @@ var knex = require('knex')(require('../knexfile').development);
 
 // It's better to move it to js about account router.
 function checkAuth(req, res, next) {
+  console.log(req.session.student_id)
   if (!req.session.student_id) {
     res.status(401).json({status: 401, data: null});
   } else {
@@ -163,8 +164,8 @@ router.post('/', checkAuth, (req, res) => {
       });
   })
   .catch((error) => {
-    console.log(error);
-    res.status(500).send(error);
+    console.error(error);
+    res.sendStatus(500);
   });
 });
 
