@@ -236,8 +236,10 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
           result["user_status"] = 0; // "Participate" button needed
         } else if (states[0].is_pending) {
           result["user_status"] = 1; // "Requesting" button needed
-        } else {
+        } else if (!states[0].is_owner) {
           result["user_status"] = 2; // "Already in" button needed
+        } else {
+          result["user_status"] = 3; // "Owner" button needed
         }
       }),
     // retrieve group_detail
