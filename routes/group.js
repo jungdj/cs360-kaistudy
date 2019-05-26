@@ -637,30 +637,92 @@ router.get('/list', (req, res) => {
 // returns groups that current user belongs to
 router.get('/mypage', checkAuth, (req, res) => {
   const student_id = req.session.student_id;
-  knex('participate')
-  .select('group_id')
-  .where("student_id", student_id)
-  .then(rows => {
-    const result = [];
-    return Promise.all(
-      rows.map(row => {
-        const group_id = row["group_id"];
-        return knex.raw(`select * from \`group\` natural left join (select category_id, name as category_name from category) as c where group_id=${group_id}`)
-          .then(q_res => {
-            const group = q_res[0][0];
-            return knex('participate').count('*').where({
-                group_id: group["group_id"],
-                is_pending: false
-              })
-              .then(member_cnt => {
-                group["member_cnt"] = member_cnt[0]["count(*)"];
-                result.push(group);
+  const result = {};
+
+  return Promise.all([
+    knex('participate')
+      .select('group_id')
+      .where({
+        student_id: student_id,
+        is_pending: true
+      })
+      .then(rows => {
+        result["pending_groups"] = [];
+        return Promise.all(
+          rows.map(row => {
+            const group_id = row["group_id"];
+            return knex.raw(`select * from \`group\` natural left join (select category_id, name as category_name from category) as c where group_id=${group_id}`)
+              .then(q_res => {
+                const group = q_res[0][0];
+                return knex('participate').count('*').where({
+                    group_id: group["group_id"],
+                    is_pending: false
+                  })
+                  .then(member_cnt => {
+                    group["member_cnt"] = member_cnt[0]["count(*)"];
+                    result["pending_groups"].push(group);
+                  });
               });
-          });
-        })
-      ).then(() => {
-        res.status(200).json({status: 200, data: result});
-      });
+            })
+          );
+      }),
+    knex('participate')
+      .select('group_id')
+      .where({
+        student_id: student_id,
+        is_pending: false,
+        is_owner: false
+      })
+      .then(rows => {
+        result["participating_groups"] = [];
+        return Promise.all(
+          rows.map(row => {
+            const group_id = row["group_id"];
+            return knex.raw(`select * from \`group\` natural left join (select category_id, name as category_name from category) as c where group_id=${group_id}`)
+              .then(q_res => {
+                const group = q_res[0][0];
+                return knex('participate').count('*').where({
+                    group_id: group["group_id"],
+                    is_pending: false
+                  })
+                  .then(member_cnt => {
+                    group["member_cnt"] = member_cnt[0]["count(*)"];
+                    result["participating_groups"].push(group);
+                  });
+              });
+            })
+          );
+      }),
+    knex('participate')
+      .select('group_id')
+      .where({
+        student_id: student_id,
+        is_pending: false,
+        is_owner: true
+      })
+      .then(rows => {
+        result["owning_groups"] = [];
+        return Promise.all(
+          rows.map(row => {
+            const group_id = row["group_id"];
+            return knex.raw(`select * from \`group\` natural left join (select category_id, name as category_name from category) as c where group_id=${group_id}`)
+              .then(q_res => {
+                const group = q_res[0][0];
+                return knex('participate').count('*').where({
+                    group_id: group["group_id"],
+                    is_pending: false
+                  })
+                  .then(member_cnt => {
+                    group["member_cnt"] = member_cnt[0]["count(*)"];
+                    result["owning_groups"].push(group);
+                  });
+              });
+            })
+          );
+      }),
+  ])
+  .then(() => {
+    res.status(200).json({status: 200, data: result});
   })
   .catch((error) => {
     console.log(error);
