@@ -60,10 +60,10 @@ app.use(function(err, req, res, next) {
   res.send('error');
 });
 
-console.log(`App running on PORT : ${process.env.PORT || 4000}`);
-console.log(`App running on PORT : ${process.env.PORT || 4000}`);
-console.log(`App running on PORT : ${process.env.PORT || 4000}`);
-console.log(`App running on PORT : ${process.env.PORT || 4000}`);
-console.log(`App running on PORT : ${process.env.PORT || 4000}`);
+console.log(`App running on PORT : ${process.env.PORT || 4000} - ${process.env.NODE_ENV}`);
+console.log(`App running on PORT : ${process.env.PORT || 4000} - ${process.env.NODE_ENV}`);
+console.log(`App running on PORT : ${process.env.PORT || 4000} - ${process.env.NODE_ENV}`);
+console.log(`App running on PORT : ${process.env.PORT || 4000} - ${process.env.NODE_ENV}`);
+console.log(`App running on PORT : ${process.env.PORT || 4000} - ${process.env.NODE_ENV}`);
 
 module.exports = app;
