@@ -13,7 +13,7 @@ function checkAuth(req, res, next) {
 
 function checkGroup_GET(req, res, next) {
   var group_id = parseInt(req.query.group_id);
-  
+
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
     res.json({success: false, msg: "wrong group id"});
@@ -36,7 +36,7 @@ function checkGroup_GET(req, res, next) {
 
 function checkGroup_POST(req, res, next) {
   var group_id = parseInt(req.body.group_id);
-  
+
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
     res.json({success: false, msg: "wrong group id"});
@@ -58,11 +58,19 @@ function checkGroup_POST(req, res, next) {
 }
 
 
-router.post('/register', checkAuth, (req, res) => {
+/*
+ GET /group?id=0
+ GET /group/list
+ POST /group
+ DELETE /group
+ PUT /group
+ */
+
+router.post('/', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category, tag} = req.body;
   var student_id = req.session.student_id;
 
-  
+
   // check capacity
   if (capacity === undefined) {
     capacity = 5; // default capacity
@@ -75,7 +83,7 @@ router.post('/register', checkAuth, (req, res) => {
 
   // TODO: check deadline (is it timestamp?)
   // TODO: check workload (is it either tight, moderate, or loose?)
-  
+
   // check category (if not in category list => set as default category)
   // then create group & participation
   knex('category')
@@ -87,7 +95,7 @@ router.post('/register', checkAuth, (req, res) => {
     } else {
       return q_res[0][0]["category_id"];
     }
-  }) 
+  })
   .then(category_id => {
     return knex('group')
     .insert({
@@ -120,7 +128,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id); // verified in checkGroup
   var student_id = req.session.student_id;
   result = {};
-  
+
   // Check whether the user is owner of the group
   knex('participate')
   .where({
@@ -201,7 +209,7 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
           result["owner_info"] = q_res2[0][0];
         });
     })
-  ])  
+  ])
   .then(() => {
     res.json({success: true, result: result});
   })
@@ -212,7 +220,7 @@ router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
   var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, parent_comment_id} = req.body;
-  
+
   // Check validity of parent_comment_id (parent_comment_id should be 1-level & in group_id)
   // - select 1 from comment where comment_id=${parent_comment_id}
   //                            and parent_comment=null
@@ -250,12 +258,12 @@ router.post('/comment/modify/', checkAuth, checkGroup_POST, (req, res) => {
   var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, comment_id} = req.body;
-  
+
   // TODO: check validity of comment_id with respect to group_id, student_id
   // OR just ...
   // - update comment set text="${text(sanitized)}"
   //    where group_id=${group_id} and comment_id=${comment_id} and student_id=${};
-  
+
   // Not implemented yet
 });
 
@@ -485,11 +493,11 @@ router.post('/deleteGroup', checkAuth, checkGroup_POST, (req, res) => {
   .catch(console.error);
 });
 
-router.post('/list', (req, res) => {
+router.get('/list', (req, res) => {
   knex.raw("select * from `group` natural left join (select category_id, name as category_name from category) as c")
   .then(q_res => {
     res.json({success: true, result: q_res[0]})
-  })  
+  })
 });
 
 module.exports = router;
