@@ -17,7 +17,7 @@ function checkGroup_GET(req, res, next) {
 
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
-    res.status(500).json({status: 500, msg: "wrong group id"});
+    res.status(404).json({status: 404, msg: "wrong group id"});
     return;
   }
 
@@ -27,7 +27,7 @@ function checkGroup_GET(req, res, next) {
   .where('group_id', group_id)
   .then(group => {
     if (group.length <= 0) {
-      res.status(500).json({status: 500, msg: "wrong group id"});
+      res.status(404).json({status: 404, msg: "wrong group id"});
     } else {
       next();
     }
@@ -43,7 +43,7 @@ function checkGroup_POST(req, res, next) {
 
   // check whether group_id is given & is integer string
   if (isNaN(group_id)) {
-    res.status(500).json({status: 500, msg: "wrong group id"});
+    res.status(404).json({status: 404, msg: "wrong group id"});
     return;
   }
 
@@ -53,7 +53,7 @@ function checkGroup_POST(req, res, next) {
   .where('group_id', group_id)
   .then(group => {
     if (group.length <= 0) {
-      res.status(500).json({status: 500, msg: "wrong group id"});
+      res.status(404).json({status: 404, msg: "wrong group id"});
     } else {
       next();
     }
