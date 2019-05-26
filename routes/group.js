@@ -71,7 +71,16 @@ function checkGroup_POST(req, res, next) {
  DELETE /group
  PUT /group
  */
-
+/*
+  {
+    title: "",
+    description: "",
+    participants: {
+      owner: owner_id,
+      members: [...members_id]
+    }
+  }
+ */
 router.post('/', checkAuth, (req, res) => {
   var {title, capacity, desc, deadline, workload, category_name, tag} = req.body;
   var student_id = req.session.student_id;
@@ -139,6 +148,32 @@ router.post('/', checkAuth, (req, res) => {
   });
 });
 
+router.get('/:group_id', function(req, res, next) {
+  const { group_id } = req.params
+  if (group_id) {
+    knex('group')
+      .where({ group_id })
+      .then(groups => {
+        const group = groups[0]
+        res.json({
+          status: 200,
+          data: group
+        })
+      })
+      .catch(error => {
+        res.status(401).json({
+          status: 401,
+          data: "No group found"
+        })
+      })
+  } else {
+    res.status(400).json({
+      status: 400,
+      data: "Bad Request"
+    })
+  }
+});
+
 router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
   var group_id = parseInt(req.query.group_id); // verified in checkGroup
   var student_id = req.session.student_id;
@@ -164,7 +199,7 @@ router.get('/manage', checkAuth, checkGroup_GET, (req, res) => {
             result["group_detail"] = q_res2[0][0];
           }),
         knex.select('*')
-          .from(() => {
+          .from(function () {
             this.select('*').from('participate')
                 .where('group_id', group_id)
                 .as('part')
@@ -420,7 +455,7 @@ router.post('/participate/accept', checkAuth, (req, res) => {
       res.json({success: true});
     })
     .catch((error) => {
-      console.log(error); 
+      console.log(error);
       res.status(500).send(error);
     });
   })
