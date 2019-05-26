@@ -226,7 +226,7 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
     // Check the user's status in the group to show
     // proper button (participate / requesting / already in)
     knex('participate')
-      .select("is_pending")
+      .select("is_pending", "is_owner")
       .where({
         student_id: student_id,
         group_id: group_id
