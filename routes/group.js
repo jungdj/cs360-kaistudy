@@ -83,8 +83,8 @@ function checkGroup_POST(req, res, next) {
   }
  */
 
-router.get('/', checkGroup_GET, (req, res) => {
-  const { group_id } = parseInt(req.query.group_id);
+router.get('/', (req, res) => {
+  const group_id = parseInt(req.query.group_id);
 
   knex('group')
   .where({ group_id })
@@ -293,7 +293,7 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
   });
 });
 
-router.post('/comment/new/', checkAuth, checkGroup_POST, async (req, res) => {
+router.post('/comment', checkAuth, checkGroup_POST, async (req, res) => {
   var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
   var {text, parent_comment_id} = req.body;
