@@ -9,7 +9,6 @@ module.exports = {
       user : 'root',
       password : '1234qwer',
       database : 'test',
-      socketPath: '/tmp/mysql.sock'
     },
   },
 
