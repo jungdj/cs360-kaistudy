@@ -430,7 +430,7 @@ router.get('/participate/list/', checkAuth, checkGroup_GET, (req, res) => {
   })
 });
 
-router.post('/participate/new/', checkAuth, checkGroup_POST, (req, res) => {
+router.post('/participate', checkAuth, checkGroup_POST, (req, res) => {
   var group_id = parseInt(req.body.group_id);
   var student_id = req.session.student_id;
 
