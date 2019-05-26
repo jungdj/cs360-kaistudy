@@ -594,7 +594,7 @@ router.get('/list', (req, res) => {
           is_pending: false
         })
         .then(member_cnt => {
-          group["member_cnt"] = member_cnt;
+          group["member_cnt"] = member_cnt[0]["count('*')"];
           result.push(group);
         })
       })
