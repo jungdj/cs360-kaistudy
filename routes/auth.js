@@ -39,6 +39,7 @@ router.post('/signup', function(req, res, next) {
       email, password, first_name, last_name, student_id, phone_number
     })
     .then(id => {
+			req.session.student_id = student_id
       console.log({ id })
       res.json({
         status: 201,
