@@ -266,7 +266,7 @@ router.get('/detail', checkAuth, checkGroup_GET, (req, res) => {
     .then(owners => {
       var owner_id = owners[0].student_id;
       return knex('student')
-        .where('student_id', student_id)
+        .where('student_id', owner_id)
         .then(students => {
           const {password, ...owner} = students[0];
           result["owner_info"] = owner;
