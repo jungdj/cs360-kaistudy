@@ -31,7 +31,7 @@ app.use(morgan('dev', {
   }, stream: process.stderr,
 }));
 
-app.use(cors());
+app.use(cors({ origin: /.*\.jung-dj\.dev$/, credentials: true }));
 
 app.use(express.static(path.join(__dirname, 'public')));
 
